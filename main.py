@@ -12,6 +12,9 @@ tasks = [
 class TaskInput(BaseModel):
     title: str = None
 
+class TaskUpdate(BaseModel):
+    title: str = None
+    done: bool = None
 
 @app.get("/")
 def root():
@@ -49,3 +52,31 @@ def create_task(task_input: TaskInput, response: Response):
 
     response.status_code = 201
     return new_task
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, task_update: TaskUpdate, response: Response):
+    if task_update.title is None and task_update.done is None:
+        response.status_code = 400
+        return {"error": "Request is missing or empty"}
+    if task_update.title is not None and not task_update.title.strip():
+        response.status_code = 400
+        return {"error": "Title is missing or empty"}
+
+    for task in tasks:
+        if task["id"] == task_id:
+            if task_update.title is not None:
+                task["title"] = task_update.title
+            if task_update.done is not None:
+                task["done"] = task_update.done
+            return task
+    response.status_code = 404
+    return {"error": f"Task {task_id} not found"}
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int, response: Response):
+    for i, task in enumerate(tasks):
+        if task["id"] == task_id:
+            tasks.pop(i)
+            response.status_code = 204
+            return
+    response.status_code = 404
+    return {"error": f"Task {task_id} not found"}

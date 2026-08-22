@@ -50,18 +50,29 @@ def health():
 @app.get("/tasks")
 def read_tasks():
     """Retrieves a list of all current tasks"""
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    grab = conn.cursor()
+    grab.execute("SELECT * FROM tasks")
+    tasks = grab.fetchall()
+    conn.close()
     return tasks
 
 
 @app.get("/tasks/{task_id}")
 def read_task(task_id: int, response: Response):
     """Retrieves a single specific task by its ID number."""
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-    response.status_code = 404
-    return {"error": f"Task {task_id} not found"}
-
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)) # task_id is inside a
+    # one item list within a tuple, we are expecting only one variable to be injected
+    tasks = cursor.fetchone()
+    conn.close()
+    if not tasks:
+        response.status_code = 404
+        return {"error": f"Task {task_id} not found"}
+    return tasks #if the program gets here, that means the requested task is in the dataset
 
 @app.post("/tasks")
 def create_task(task_input: TaskInput, response: Response):

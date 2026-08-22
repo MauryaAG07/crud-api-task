@@ -1,14 +1,33 @@
 from fastapi import FastAPI, Response
 from pydantic import BaseModel
+import sqlite3
 
 app = FastAPI()
-tasks = [
-    {"id": 1, "title": "Learn FastAPI", "done": False},
-    {"id": 2, "title": "Build CrudAPI", "done": False},
-    {"id": 3, "title": "Publish to Github", "done": False},
-]
+# stage 0: database init
+def init_db():
+    conn = sqlite3.connect("tasks.db")
+    cursor = conn.cursor()
 
-
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+    title TEXT NOT NULL,
+    done BOOLEAN NOT NULL
+    )
+    """)
+    #checking whether table is empty or not
+    cursor.execute("SELECT COUNT(*) FROM tasks")
+    if cursor.fetchone()[0] == 0:
+        task_starter = [
+            ("Learn FastAPI", False),
+            ("Build CrudAPI", True),
+            ("Publish to Github", False),
+        ]
+        cursor.executemany("INSERT INTO tasks (title, done) VALUES (?, ?)", task_starter)
+        conn.commit()
+    conn.close()
+# run init once file loads
+init_db()
+#deleted old task box
 class TaskInput(BaseModel):
     title: str = None
 

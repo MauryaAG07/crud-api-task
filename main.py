@@ -104,23 +104,41 @@ def update_task(task_id: int, task_update: TaskUpdate, response: Response):
         response.status_code = 400
         return {"error": "Title is missing or empty"}
 
-    for task in tasks:
-        if task["id"] == task_id:
-            if task_update.title is not None:
-                task["title"] = task_update.title
-            if task_update.done is not None:
-                task["done"] = task_update.done
-            return task
-    response.status_code = 404
-    return {"error": f"Task {task_id} not found"}
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    current_task = cursor.fetchone()
+    if current_task is None:
+        conn.close()
+        response.status_code = 404
+        return {"error": f"Task {task_id} not found"}
+    final_title = task_update.title if task_update.title is not None else current_task["title"]
+    final_done = task_update.done if task_update.done is not None else current_task["done"]
+    cursor.execute("UPDATE tasks SET title = ?, done = ? WHERE id = ?", (final_title,final_done, task_id))
+    conn.commit()
+    conn.close()
+    final_task = {
+        "id": task_id,
+        "title": final_title,
+        "done": final_done
+    }
+    return final_task
+
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int, response: Response):
     """Permanently deletes an existing task, found by its ID number"""
-    for i, task in enumerate(tasks):
-        if task["id"] == task_id:
-            tasks.pop(i)
-            response.status_code = 204
-            return
-    response.status_code = 404
-    return {"error": f"Task {task_id} not found"}
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+
+    if cursor.rowcount == 0:
+        response.status_code = 404
+        return {"error": f"Task {task_id} not found"}
+    conn.commit() #if it made it here that means the task existed.
+    conn.close()
+    #return success status
+    response.status_code = 204
+    return

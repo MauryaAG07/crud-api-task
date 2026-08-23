@@ -80,11 +80,18 @@ def create_task(task_input: TaskInput, response: Response):
     if not task_input.title or not task_input.title.strip():
         response.status_code = 400
         return {"error": "Title is missing or empty"}
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO tasks (title, done) VALUES (?,?)", (task_input.title, False))
+    new_task = {
+        "id": cursor.lastrowid,
+        "title": task_input.title,
+        "done": False
+    }
 
-    new_id = max(t["id"] for t in tasks) + 1 if tasks else 1
-    new_task = {"id": new_id, "title": task_input.title, "done": False}
-    tasks.append(new_task)
-
+    conn.commit()
+    conn.close()
     response.status_code = 201
     return new_task
 @app.put("/tasks/{task_id}")

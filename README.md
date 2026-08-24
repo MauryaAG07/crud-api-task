@@ -1,40 +1,40 @@
-# My First CRUD API
+# Task List CRUD API
 
-This is a simple RESTful API for managing a to-do list, built using Python and FastAPI. It supports full CRUD operations (Create, Read, Update, Delete) with data stored in-memory.
+This project is a fully functional CRUD API that manages a task list, built for the FlyRank Backend AI Engineering track. 
 
-## How to Install and Run
+## Features
+- Create, Read, Update, and Delete tasks.
+- Data persistence using a relational database.
+- Interactive API documentation via Swagger UI.
 
-To start the server, open your terminal in this directory and run:
+## Architecture & Storage
+- **Database Choice:** **SQLite** was chosen for this project because it is extremely lightweight, requires no background server to run, and makes local development incredibly easy. 
+- **Storage Location:** All data is persistently stored in a single file located in the root directory named `tasks.db`.
 
-`python3 -m uvicorn main:app --reload`
+## How to Run the Project
+To start the API on your local machine, follow these steps:
 
-The API will be available at `http://localhost:8000`. 
-You can view the interactive Swagger UI documentation at `http://localhost:8000/docs`.
+1. Ensure you have the required dependencies installed (FastAPI and Uvicorn).
+2. Open your terminal in the project's root directory.
+3. Run the development server using the following command:
+   ```bash
+   uvicorn main:app --reload
+   ```
+4. The API will automatically generate the `tasks.db` file if it does not exist. 
+5. Open your browser and navigate to `http://localhost:8000/docs` to view and interact with the Swagger UI.
 
-## Endpoints
+## Database Exploration
+The database can be explored using any SQLite viewer (such as DataGrip). Below is a screenshot of the `tasks` table being viewed in DataGrip, showing that the data successfully synced with the API.
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/` | Returns basic API information |
-| GET | `/health` | Diagnostic health check |
-| GET | `/tasks` | Lists all tasks |
-| GET | `/tasks/{task_id}` | Retrieves a specific task by ID |
-| POST | `/tasks` | Creates a new task (requires title) |
-| PUT | `/tasks/{task_id}` | Updates a task's title/status |
-| DELETE | `/tasks/{task_id}` | Deletes a task by ID |
+<img width="948" height="930" alt="DataGrip" src="https://github.com/user-attachments/assets/c7e89c9e-9c67-4635-be2b-70ebe8f5c5a2" />
 
-## Example Request
+### Example SQL Queries
+During development, the following queries were executed directly on the database to verify persistence and API synchronization:
 
-**Creating a new task:**
-```bash
-curl -i -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d '{"title":"Buy milk"}'
+```sql
+-- Mark every task as completed
+UPDATE tasks SET done = 1;
 
-HTTP/1.1 201 Created
-date: Wed, 19 Aug 2026 00:00:00 GMT
-server: uvicorn
-content-length: 44
-content-type: application/json
-
-{"id":4,"title":"Buy milk","done":false}
-
-
+-- Verify the changes
+SELECT * FROM tasks WHERE done = 1;
+```

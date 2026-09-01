@@ -3,7 +3,11 @@ from pydantic import BaseModel
 import os
 import psycopg2
 from dotenv import load_dotenv
+from supabase import create_client, Client
 load_dotenv()
+url: str = os.getenv("SUPABASE_URL")
+key: str = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 DATABASE_URL = os.getenv("DATABASE_URL")
 app = FastAPI()
 # stage 0: database init

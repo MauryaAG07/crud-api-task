@@ -1,16 +1,95 @@
-from fastapi import FastAPI, Response
-from pydantic import BaseModel
+from fastapi import FastAPI, Response, HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Header
 import os
 import psycopg2
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from pydantic import BaseModel
+from fastapi import HTTPException, status
+
+class AuthCredentials(BaseModel):
+    email: str
+    password: str
 load_dotenv()
 url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 DATABASE_URL = os.getenv("DATABASE_URL")
 app = FastAPI()
-# stage 0: database init
+security = HTTPBearer() #this is to prevent swagger ui from native security handling
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """FastAPI Dependency to extract and verify the JWT."""
+    token = credentials.credentials
+    try:
+        user_response = supabase.auth.get_user(token)
+        return user_response.user
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
+@app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(current_user = Depends(verify_token)):
+    """Logs the user out and terminates the session."""
+    supabase.auth.sign_out()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@app.get("/protected/dashboard")
+def dashboard(current_user = Depends(verify_token)):
+    """A second protected route to test middleware reusability."""
+    return {"message": f"Welcome to the dashboard, {current_user.email}!"}
+
+@app.get("/public/info", status_code=status.HTTP_200_OK)
+def public_info():
+    """A public route anyone can access."""
+    return {"message": "Welcome stranger! This info is public."}
+
+@app.get("/protected/profile")
+def protected_profile(current_user = Depends(verify_token)):
+    """A protected route using our reusable dependency."""
+    # The route only runs if verify_token succeeds!
+    return {"message": "Access granted", "user": current_user}
+
+    # FastAPI auto-strips "Bearer" and gives us the raw token string
+@app.post("/auth/signup",status_code = status.HTTP_201_CREATED)
+def signup(credentials: AuthCredentials):
+    if not credentials.email or not credentials.password:
+        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Incorrect email or password"
+                            )
+    try:
+        response = supabase.auth.sign_up({
+            "email": credentials.email,
+            "password": credentials.password
+        })
+        return response.user
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+@app.post("/auth/login",status_code = status.HTTP_200_OK)
+def login(credentials: AuthCredentials):
+    if not credentials.email or not credentials.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email and password are required"
+        )
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": credentials.email,
+            "password": credentials.password
+        })
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+            "token_type": "bearer"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid login credentials"
+        )
 def init_db():
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
@@ -153,10 +232,3 @@ def delete_task(task_id: int, response: Response):
         response.status_code = 404
         cursor.close()
         conn.close()
-        return {"error": f"Task {task_id} not found"}
-    conn.commit() #if it made it here that means the task existed.
-    cursor.close()
-    conn.close()
-    #return success status
-    response.status_code = 204
-    return
